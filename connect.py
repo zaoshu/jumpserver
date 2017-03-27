@@ -425,6 +425,9 @@ class Nav(object):
     """
     def __init__(self, user):
         self.user = user
+        self.reload()
+
+    def reload(self):
         self.user_perm = get_group_user_perm(self.user)
         if NAV_SORT_BY == 'ip':
             self.perm_assets = sorted(self.user_perm.get('asset', []).keys(),
@@ -439,7 +442,7 @@ class Nav(object):
     def natural_sort_hostname(self, list):
         convert = lambda text: int(text) if text.isdigit() else text.lower()
         alphanum_key = lambda x: [ convert(c) for c in re.split('([0-9]+)', x.hostname) ]
-        return sorted(list, key = alphanum_key)
+        return sorted(list, key=alphanum_key)
 
     @staticmethod
     def print_nav():
@@ -449,16 +452,18 @@ class Nav(object):
         """
         msg = """\n\033[1;32m###    欢迎使用Jumpserver开源跳板机系统   ### \033[0m
 
-        1) 输入 \033[32mID\033[0m 直接登录 或 输入\033[32m部分 IP,主机名,备注\033[0m 进行搜索登录(如果唯一).
-        2) 输入 \033[32m/\033[0m + \033[32mIP, 主机名 or 备注 \033[0m搜索. 如: /ip
-        3) 输入 \033[32mP/p\033[0m 显示您有权限的主机.
-        4) 输入 \033[32mG/g\033[0m 显示您有权限的主机组.
-        5) 输入 \033[32mG/g\033[0m\033[0m + \033[32m组ID\033[0m 显示该组下主机. 如: g1
-        6) 输入 \033[32mE/e\033[0m 批量执行命令.
-        7) 输入 \033[32mU/u\033[0m 批量上传文件.
-        8) 输入 \033[32mD/d\033[0m 批量下载文件.
-        9) 输入 \033[32mH/h\033[0m 帮助.
-        0) 输入 \033[32mQ/q\033[0m 退出.
+        01) 输入 \033[32mID\033[0m 直接登录 或 输入\033[32m部分 IP,主机名,备注\033[0m 进行搜索登录(如果唯一).
+        02) 输入 \033[32m/\033[0m + \033[32mIP, 主机名 or 备注 \033[0m搜索. 如: /ip
+        03) 输入 \033[32mP/p\033[0m 显示您有权限的主机.
+        04) 输入 \033[32mG/g\033[0m 显示您有权限的主机组.
+        05) 输入 \033[32mG/g\033[0m\033[0m + \033[32m组ID\033[0m 显示该组下主机. 如: g1
+        06) 输入 \033[32mE/e\033[0m 批量执行命令.
+        07) 输入 \033[32mU/u\033[0m 批量上传文件.
+        08) 输入 \033[32mD/d\033[0m 批量下载文件.
+        09) 输入 \033[32mH/h\033[0m 帮助.
+        00) 输入 \033[32mQ/q\033[0m 退出.
+        10) 输入 \033[32mQ/q\033[0m 退出.
+        11) 输入 \033[32mR/r\033[0m 重新读取用户配置.
         """
         print textwrap.dedent(msg)
 
@@ -780,6 +785,9 @@ def main():
             if option in ['P', 'p', '\n', '']:
                 nav.search()
                 nav.print_search_result()
+                continue
+            if option in ['r', 'R']:
+                nav.reload()
                 continue
             if option.startswith('/'):
                 nav.search(option.lstrip('/'))

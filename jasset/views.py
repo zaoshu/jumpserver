@@ -1,4 +1,5 @@
 # coding:utf-8
+import json
 from django.db.models import Q
 from jasset.asset_api import *
 from jumpserver.api import *
@@ -6,8 +7,9 @@ from jumpserver.models import Setting
 from jasset.forms import AssetForm, IdcForm
 from jasset.models import Asset, IDC, AssetGroup, ASSET_TYPE, ASSET_STATUS
 from jperm.perm_api import get_group_asset_perm, get_group_user_perm
-from libcloud.compute.providers import get_driver, Provider
 from jumpserver.settings import ALIYUN_ID, ALIYUN_SECRET
+from aliyunsdkcore.client import AcsClient
+from aliyunsdkecs.request.v20140526.DescribeInstancesRequest import DescribeInstancesRequest
 
 
 @require_role('admin')
@@ -610,18 +612,32 @@ def asset_sync_aliyun(request):
     if request.method != 'POST':
         return http_error(request, "invalid request")
     region = "cn-beijing"
-    Driver = get_driver(Provider.ALIYUN_ECS)
-    d = Driver(ALIYUN_ID, ALIYUN_SECRET, region=region, secure=True)
+    client = AcsClient(ALIYUN_ID, ALIYUN_SECRET, region)
+    instances = []
+    current_page_num = 1
+    while True:
+        request = DescribeInstancesRequest()
+        request.set_PageSize('100')
+        request.set_PageNumber(str(current_page_num))
+        response_body = client.do_action_with_exception(request)
+        response = json.loads(response_body)
+        assert 'Instances' in response, 'FLAG1'
+        assert 'Instance' in response['Instances'], 'FLAG2'
+        if len(response['Instances']['Instance']) == 0:
+            break
+        instances += response['Instances']['Instance']
+        if len(instances) == response['TotalCount']:
+            break
+        current_page_num += 1
     try:
-        nodes = d.list_nodes()
         default_setting = get_object(Setting, name='default')
         default_port = default_setting.field2 if default_setting else ''
-        for node in nodes:
-            if len(node.private_ips) == 0:
-                logging.error('ecs node should have an private ip address. %s', node)
+        for instance in instances:
+            if len(instance['InnerIpAddress']['IpAddress']) == 0:
+                logging.error('ecs node should have an private ip address. %s', instance['InstanceId'])
                 continue
-            ip = node.private_ips[0]
-            hostname = node.name
+            ip = instance['InnerIpAddress']['IpAddress'][0].encode('utf8')
+            hostname = instance['InstanceName']
             if Asset.objects.filter(ip=ip):
                 logging.debug('host %s already exists, skip', ip)
                 continue

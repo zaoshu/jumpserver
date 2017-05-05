@@ -17,4 +17,5 @@ argparse==1.4.0
 django-crontab==0.6.0
 django-smtp-ssl==1.0
 pyte==0.5.2
-apache-libcloud==2.0.0
+aliyun-python-sdk-core==2.3.1
+aliyun-python-sdk-ecs==3.0.0

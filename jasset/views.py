@@ -638,6 +638,11 @@ def asset_sync_aliyun(request):
                 continue
             ip = instance['InnerIpAddress']['IpAddress'][0].encode('utf8')
             hostname = instance['InstanceName']
+
+            if 'jumpserver' in hostname.lower():
+                # do not add jumpserver itself to asset list
+                continue
+
             if Asset.objects.filter(ip=ip):
                 logging.debug('host %s already exists, skip', ip)
                 continue

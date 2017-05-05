@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import platform
 import time
 import datetime
-import json
 import os
 import sys
 import os.path
 import threading
 import re
+import logging
 import functools
 from django.core.signals import request_started, request_finished
 
@@ -21,8 +21,16 @@ import tornado.gen
 import tornado.httpclient
 from tornado.websocket import WebSocketClosedError
 
+logging.basicConfig(level=logging.DEBUG, format="""["%(asctime)s" "%(levelname)s" %(pathname)s:%(lineno)d] %(message)s""")
+
+# I need to disable some feature to run js on OSX
 from tornado.options import define, options
-from pyinotify import WatchManager, ProcessEvent, IN_DELETE, IN_CREATE, IN_MODIFY, AsyncNotifier
+switch_pyinotify = False
+if platform.system() == 'Darwin':
+    logging.info('on osx, package "pyinotify" will not be enable')
+else:
+    switch_pyinotify = True
+    from pyinotify import WatchManager, ProcessEvent, IN_DELETE, IN_CREATE, IN_MODIFY, AsyncNotifier
 import select
 
 from connect import Tty, User, Asset, PermRole, logger, get_object, gen_resource
@@ -101,15 +109,26 @@ class MyThread(threading.Thread):
             pass
 
 
-class EventHandler(ProcessEvent):
-    def __init__(self, client=None):
-        self.client = client
+if switch_pyinotify:
+    class EventHandler(ProcessEvent):
+        def __init__(self, client=None):
+            self.client = client
 
-    def process_IN_MODIFY(self, event):
-        self.client.write_message(f.read().decode('utf-8', 'replace'))
+        def process_IN_MODIFY(self, event):
+            self.client.write_message(f.read().decode('utf-8', 'replace'))
+else:
+    class EventHandler(object):
+        def __index__(self, client=None):
+            return
+
+        def process_IN_MODIFY(self, event):
+            return
 
 
 def file_monitor(path='.', client=None):
+    if not switch_pyinotify:
+        logging.warn('pyinotify is disabled')
+        return
     wm = WatchManager()
     mask = IN_DELETE | IN_CREATE | IN_MODIFY
     notifier = AsyncNotifier(wm, EventHandler(client))

@@ -146,6 +146,9 @@
                                 <input type="button" id="asset_update" class="btn btn-info btn-sm"  name="update_button" value="更新"/>
 {#                                <input type="button" id="asset_update_all" class="btn btn-primary btn-sm"  name="update_button" value="更新全部"/>#}
                                 <input type="button" id="exec_cmd" class="btn btn-sm btn-primary"  name="exec_cmd" value="执行命令"/>
+                                <!-- will only sync aliyun beijing region for now -->
+                                <input type="button" id="exec_sync_aliyun" class="btn btn-sm btn-primary"  name="exec_cmd" value="Sync Aliyun"/>
+                                <!-- will only sync aliyun beijing region for now -->
                             </div>
                             {% include 'paginator.html' %}
                         </div>
@@ -406,6 +409,14 @@
         }
     });
 
+
+    $("#exec_sync_aliyun").click(function(){
+        layer.msg('正在同步阿里云北京区域节点信息', {time: 2000});
+        $.post("/jasset/asset/sync/aliyun", function(){
+            setTimeout(window.location.reload, 1000);
+        });
+    });
+
 {#    $('#asset_update_all').click(function () {#}
 {#        layer.msg('玩命更新中...', {time: 200000});#}
 {#        $.ajax({#}
@@ -427,6 +438,9 @@
             change_info()
             }
     });
+
+
+
 </script>
 
 {% endblock %}

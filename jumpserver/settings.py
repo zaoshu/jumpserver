@@ -174,3 +174,10 @@ CRONJOBS = [
     ('0 1 * * *', 'jasset.asset_api.asset_ansible_update_all'),
     ('*/10 * * * *', 'jlog.log_api.kill_invalid_connection'),
 ]
+
+
+# ======== Aliyun ==========
+ALIYUN_ID = config.get("aliyun", "id")
+ALIYUN_SECRET = config.get("aliyun", "secret")
+# ======== Aliyun ==========
+

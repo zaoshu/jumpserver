@@ -1,5 +1,4 @@
 # coding:utf-8
-
 from django.db.models import Q
 from jasset.asset_api import *
 from jumpserver.api import *
@@ -7,6 +6,8 @@ from jumpserver.models import Setting
 from jasset.forms import AssetForm, IdcForm
 from jasset.models import Asset, IDC, AssetGroup, ASSET_TYPE, ASSET_STATUS
 from jperm.perm_api import get_group_asset_perm, get_group_user_perm
+from libcloud.compute.providers import get_driver, Provider
+from jumpserver.settings import ALIYUN_ID, ALIYUN_SECRET
 
 
 @require_role('admin')
@@ -575,3 +576,69 @@ def asset_upload(request):
         else:
             emg = u'批量添加失败,请检查格式.'
     return my_render('jasset/asset_add_batch.html', locals(), request)
+
+
+@require_role('admin')
+def asset_sync_aliyun(request):
+    """
+    Sync aliyun beijing region nodes
+    """
+    idcc = IDC.objects.filter(name="aliyun")
+    if idcc:
+        idc = idcc.get()
+    else:
+        idc = IDC(name='aliyun')
+        idc.save()
+
+    group_list = [
+    ['ReleaseGroup', ['release', 'RELEASE', 'Release'], None],
+        ['SupportGroup', ['support', 'SUPPORT', 'Support'], None],
+        ['DebugGroup', ['debug', 'DEBUG', 'Debug'], None],
+        ['DevGroup', ['dev', 'DEV', 'Dev'], None],
+        ['SideProject', ['side', 'SIDE', 'Side'], None],
+    ]
+
+    for g in group_list:
+        gc = AssetGroup.objects.filter(name=g[0])
+        if gc:
+            group = gc.get()
+        else:
+            group = AssetGroup(name=g[0])
+            group.save()
+        g[-1] = group
+
+    if request.method != 'POST':
+        return http_error(request, "invalid request")
+    region = "cn-beijing"
+    Driver = get_driver(Provider.ALIYUN_ECS)
+    d = Driver(ALIYUN_ID, ALIYUN_SECRET, region=region, secure=True)
+    try:
+        nodes = d.list_nodes()
+        default_setting = get_object(Setting, name='default')
+        default_port = default_setting.field2 if default_setting else ''
+        for node in nodes:
+            if len(node.private_ips) == 0:
+                logging.error('ecs node should have an private ip address. %s', node)
+                continue
+            ip = node.private_ips[0]
+            hostname = node.name
+            if Asset.objects.filter(ip=ip):
+                logging.debug('host %s already exists, skip', ip)
+                continue
+            group = None
+            for g in group_list:
+                key_words = g[1]
+                for key_word in key_words:
+                    if key_word in hostname:
+                        group = g[-1]
+                        break
+                if group is not None:
+                    break
+            asset = Asset(ip=ip, hostname=hostname, port=default_port, idc=idc)
+            asset.save()
+            if group:
+                asset.group.add(group)
+    except Exception as e:
+        logging.error(e)
+    return http_success(request, 'it works')
+
